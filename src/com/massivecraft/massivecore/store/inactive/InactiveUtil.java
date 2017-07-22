@@ -4,18 +4,35 @@ import com.massivecraft.massivecore.event.EventMassiveCorePlayercleanToleranceMi
 import com.massivecraft.massivecore.mixin.MixinMessage;
 import com.massivecraft.massivecore.store.SenderColl;
 import com.massivecraft.massivecore.store.SenderEntity;
+import com.massivecraft.massivecore.util.MUtil;
+import com.massivecraft.massivecore.util.TimeUnit;
+import com.massivecraft.massivecore.util.Txt;
 import org.bukkit.command.CommandSender;
 
 import java.util.Collection;
 
 public class InactiveUtil
 {
-	public static void considerRemoveInactive(final SenderColl<? extends SenderEntity<?>> coll, final Iterable<CommandSender> recipients)
+	// -------------------------------------------- //
+	// WHAT DO WE HANDLE?
+	// -------------------------------------------- //
+	
+	// The standard used for non-crucial data that can easily be replaced.
+	public static final long PLAYERCLEAN_TOLERANCE_MILLIS_STANDARD = 3 * TimeUnit.MILLIS_PER_MONTH;
+	
+	// The standard for important information that can not easily be replaced.
+	public static final long PLAYERCLEAN_TOLERANCE_MILLIS_IMPORTANT = 15 * TimeUnit.MILLIS_PER_MONTH;
+	
+	// -------------------------------------------- //
+	// LOGIC
+	// -------------------------------------------- //
+	
+	public static void considerRemoveInactive(final SenderColl<? extends Inactive> coll, final Iterable<CommandSender> recipients)
 	{
 		considerRemoveInactive(System.currentTimeMillis(), coll, recipients);
 	}
 	
-	public static void considerRemoveInactive(long now, final SenderColl<? extends SenderEntity<?>> coll, final Iterable<CommandSender> recipients)
+	public static void considerRemoveInactive(long now, final SenderColl<? extends Inactive> coll, final Iterable<CommandSender> recipients)
 	{
 		final long playercleanToleranceMillis = coll.getPlayercleanToleranceMillis();
 		if (playercleanToleranceMillis <= 0)
@@ -41,36 +58,47 @@ public class InactiveUtil
 		}
 		
 		long time = System.currentTimeMillis() - start;
+		int current = coll.getIds().size();
+		int total = current + count;
+		double percentage = (((double) count) / total) * 100D;
+		if (!MUtil.isFinite(percentage)) percentage = 0D;
 		for (CommandSender recipient : recipients)
 		{
-			int current = coll.getIds().size();
-			int total = current + count;
-			double percentage = (((double) count) / total) * 100D;
 			MixinMessage.get().msgOne(recipient, "<i>Removed <h>%d<i>/<h>%d (%.2f%%) <i>players from <h>%s <i>took <v>%dms<i>.", count, total, percentage, coll.getName(), time);
 		}
 	}
 	
 	public static boolean considerRemoveInactive(long now, SenderEntity<?> entity, Iterable<CommandSender> recipients)
 	{
-		if ( ! (entity instanceof Inactive)) return false;
 		if (entity.detached()) return false;
 		
 		// Consider
-		if (!shouldBeRemoved(now, entity)) return false;
+		if (isActive(now, entity)) return false;
 		
-		//String message = Txt.parse("<i>Player <h>%s<i> with id %s was removed due to inactivity.", entity.getName(), entity.getId());
+		String message = Txt.parse("<i>Player <h>%s<i> with id %s was removed due to inactivity.", entity.getName(), entity.getId());
+		for (CommandSender recipient : recipients)
+		{
+			MixinMessage.get().messageOne(recipient, message);
+		}
 		
 		// Apply
-		entity.detach();
+		removeInactive(entity);
 		
 		return true;
 	}
 	
-	public static boolean shouldBeRemoved(long now, SenderEntity entity)
+	public static void removeInactive(SenderEntity<?> entity)
+	{
+		entity.preClean();
+		entity.detach();
+		entity.postClean();
+	}
+	
+	public static boolean isActive(long now, SenderEntity entity)
 	{
 		EventMassiveCorePlayercleanToleranceMillis event = new EventMassiveCorePlayercleanToleranceMillis(now, entity);
 		event.run();
-		return event.shouldBeRemoved();
+		return !event.shouldBeRemoved();
 	}
-	
+
 }

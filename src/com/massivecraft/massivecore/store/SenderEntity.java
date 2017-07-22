@@ -9,6 +9,7 @@ import com.massivecraft.massivecore.mixin.MixinMessage;
 import com.massivecraft.massivecore.mixin.MixinPlayed;
 import com.massivecraft.massivecore.mixin.MixinVisibility;
 import com.massivecraft.massivecore.mson.Mson;
+import com.massivecraft.massivecore.store.inactive.Inactive;
 import com.massivecraft.massivecore.util.IdUtil;
 import com.massivecraft.massivecore.util.PermissionUtil;
 import org.bukkit.GameMode;
@@ -19,7 +20,7 @@ import org.bukkit.entity.Player;
 import java.util.Collection;
 import java.util.UUID;
 
-public abstract class SenderEntity<E extends SenderEntity<E>> extends Entity<E> implements Named
+public abstract class SenderEntity<E extends SenderEntity<E>> extends Entity<E> implements Named, Inactive
 {
 	// -------------------------------------------- //
 	// FIELDS
@@ -63,6 +64,31 @@ public abstract class SenderEntity<E extends SenderEntity<E>> extends Entity<E> 
 	public SenderColl<E> getColl()
 	{
 		return (SenderColl<E>) super.getColl();
+	}
+	
+	// -------------------------------------------- //
+	// OVERRIDE: INACTIVE
+	// -------------------------------------------- //
+	
+	@Override
+	public long getLastActivityMillis()
+	{
+		// NOTE: This is the default implementation used by most MassiveX plugins.
+		// Public plugins such as Factions should however store this information themself
+		// because the Bukkit API might be unreliable.
+		Long ret = this.getLastPlayed();
+		if (ret == null) ret = 0L;
+		return ret;
+	}
+	
+	public void preClean()
+	{
+	
+	}
+	
+	public void postClean()
+	{
+	
 	}
 	
 	// -------------------------------------------- //

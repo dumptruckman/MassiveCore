@@ -2,7 +2,6 @@ package com.massivecraft.massivecore.event;
 
 import com.massivecraft.massivecore.store.SenderColl;
 import com.massivecraft.massivecore.store.SenderEntity;
-import com.massivecraft.massivecore.store.inactive.Inactive;
 import org.bukkit.event.HandlerList;
 
 import java.util.LinkedHashMap;
@@ -69,7 +68,10 @@ public class EventMassiveCorePlayercleanToleranceMillis extends EventMassiveCore
 		long toleranceMillis = getToleranceMillis();
 		
 		long now = this.getNow();
-		long lastActivityMillis = ((Inactive)this.getEntity()).getLastActivityMillis();
+		long lastActivityMillis = entity.getLastActivityMillis();
+		
+		// If unknown don't remove
+		if (lastActivityMillis == 0) return false;
 		
 		long removeTime = lastActivityMillis + toleranceMillis;
 		
